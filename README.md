@@ -13,19 +13,23 @@ See `plan.md` for the full PRD and `roadmap.md` for the phased build plan.
 
 ## Status
 
-**Phases 0–2 complete** (41 passing tests). See `roadmap.md`.
+**Phases 0–3 complete** (61 passing tests). See `roadmap.md`.
 
 - **Phase 0 — contracts:** `AugmentationParams` (plan §7), `ECGMetadata` (plan §8)
 - **Phase 1 — ingestion:** format-adaptive loader → validated `ECGRecord` in mV
   (CardiologyXML full impl, generic heuristic + WFDB fallbacks; plan §4)
 - **Phase 2 — renderer:** `ECGRecord` → photorealistic clean 12-lead printout at
   300 DPI with grid, calibration pulse, and per-lead bboxes (plan §5)
+- **Phase 3 — degradation (layers 1–2):** paper aging + handling (yellowing, ink
+  variation, light-consistent wrinkles/folds, edge curl, stains/pen/fingerprint),
+  with an invertible composite warp field (plan §6.L1–L2)
 
 Try it:
 
 ```bash
-python scripts/inspect_ecg.py data/dummy-ecg.xml          # detect + extract + plot
-python scripts/render_ecg.py  data/dummy-ecg.xml --bbox   # render clean printout
+python scripts/inspect_ecg.py        data/dummy-ecg.xml          # detect + extract + plot
+python scripts/render_ecg.py         data/dummy-ecg.xml --bbox   # render clean printout
+python scripts/visual_test_degrade.py data/dummy-ecg.xml         # dump each degradation layer
 ```
 
 ## Layout
@@ -38,9 +42,10 @@ physiorender/
   logging_setup.py # shared logging
   ingest/          # Phase 1: format detection, extractors, validation, load_ecg()
   render/          # Phase 2: layout templates + ECGRenderer
+  degrade/         # Phase 3: noise, warp, light, layer1/2, DegradationEngine
 phototrace/        # digitization models (Phases 6-7)
-scripts/           # inspect_ecg.py, render_ecg.py
-tests/             # pytest suite (41 tests)
+scripts/           # inspect_ecg.py, render_ecg.py, visual_test_degrade.py
+tests/             # pytest suite (61 tests)
 data/              # source ECG files & datasets (gitignored)
 artifacts/         # generated images & outputs (gitignored)
 ```

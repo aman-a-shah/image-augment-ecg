@@ -217,14 +217,14 @@ def apply_blur(img: np.ndarray, rng: np.random.Generator, *,
     if blur_type == "none" or strength <= 0:
         return img
     if blur_type == "motion":
-        length = int((0.3 + 1.4 * strength) * ppm)
+        length = int((0.15 + 0.7 * strength) * ppm)
         k = _motion_kernel(length, rng.uniform(0, 180))
         return cv2.filter2D(img, -1, k, borderType=cv2.BORDER_REFLECT_101)
     if blur_type == "handshake":
-        k = _handshake_kernel(int((0.2 + 1.0 * strength) * ppm), rng)
+        k = _handshake_kernel(int((0.12 + 0.5 * strength) * ppm), rng)
         return cv2.filter2D(img, -1, k, borderType=cv2.BORDER_REFLECT_101)
     # defocus: isotropic Gaussian, optionally spatially varying (shallow DOF)
-    sigma = (0.1 + 0.5 * strength) * ppm
+    sigma = (0.08 + 0.3 * strength) * ppm
     blurred = cv2.GaussianBlur(img, (0, 0), sigmaX=sigma, sigmaY=sigma)
     if rng.random() < 0.5:  # shallow depth-of-field: sharp center, soft edges
         h, w = img.shape[:2]

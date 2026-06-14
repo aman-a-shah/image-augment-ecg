@@ -54,7 +54,8 @@ class ParameterSampler:
 
         n_wrinkles = int(rng.integers(0, 7))
         wrinkle_int = float(rng.uniform(0.3, 1.0))
-        n_folds = int(rng.integers(0, 3))
+        # Folds are heavy; most ECGs have 0-1, occasionally 2.
+        n_folds = int(rng.choice([0, 1, 2], p=[0.5, 0.38, 0.12]))
 
         tilt_x = float(np.clip(rng.normal(0, 8), -15, 15))
         tilt_y = float(np.clip(rng.normal(0, 10), -18, 18))
@@ -62,7 +63,7 @@ class ParameterSampler:
 
         blurred = rng.random() < cfg.p_blur
         blur_type = str(rng.choice(["motion", "defocus", "handshake"])) if blurred else "none"
-        blur_strength = float(rng.uniform(0.2, 0.85)) if blurred else 0.0
+        blur_strength = float(rng.uniform(0.15, 0.55)) if blurred else 0.0
 
         lens_k1 = float(rng.uniform(0.0, 0.08))
         crop_margin = float(rng.uniform(0.02, 0.15))

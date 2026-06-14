@@ -109,10 +109,10 @@ def add_folds(img: np.ndarray, disp: DisplacementField, rng: np.random.Generator
         out = _add_crease(
             out, disp, rng, light,
             width_px=width_px,
-            disp_amp_px=(2.0 + 2.0 * intensity) * rng.uniform(0.8, 1.2) * ppm,  # 3-5x wrinkle
-            shade_amp=0.30,
+            disp_amp_px=(1.0 + 1.3 * intensity) * rng.uniform(0.8, 1.2) * ppm,  # ~2-3x wrinkle
+            shade_amp=0.22,
             wobble_px=rng.uniform(0.3, 1.0) * ppm,
-            dark_line=0.25,
+            dark_line=0.16,
         )
     return out
 

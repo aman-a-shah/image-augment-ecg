@@ -13,24 +13,34 @@ See `plan.md` for the full PRD and `roadmap.md` for the phased build plan.
 
 ## Status
 
-**Phase 0 — Foundation & contracts: complete.** The two core data contracts are
-in place and tested:
+**Phases 0–2 complete** (41 passing tests). See `roadmap.md`.
 
-- `physiorender.AugmentationParams` — the degradation parameter set (plan §7)
-- `physiorender.ECGMetadata` — the per-image metadata record (plan §8)
+- **Phase 0 — contracts:** `AugmentationParams` (plan §7), `ECGMetadata` (plan §8)
+- **Phase 1 — ingestion:** format-adaptive loader → validated `ECGRecord` in mV
+  (CardiologyXML full impl, generic heuristic + WFDB fallbacks; plan §4)
+- **Phase 2 — renderer:** `ECGRecord` → photorealistic clean 12-lead printout at
+  300 DPI with grid, calibration pulse, and per-lead bboxes (plan §5)
 
-Everything downstream reads/writes against these.
+Try it:
+
+```bash
+python scripts/inspect_ecg.py data/dummy-ecg.xml          # detect + extract + plot
+python scripts/render_ecg.py  data/dummy-ecg.xml --bbox   # render clean printout
+```
 
 ## Layout
 
 ```
-physiorender/      # augmentation engine (renderer + degradation, Phases 2-5)
+physiorender/
   config.py        # rendering constants (DPI, grid colors, paper specs)
-  params.py        # AugmentationParams contract
-  metadata.py      # ECGMetadata contract
+  params.py        # AugmentationParams contract (plan §7)
+  metadata.py      # ECGMetadata contract (plan §8)
   logging_setup.py # shared logging
+  ingest/          # Phase 1: format detection, extractors, validation, load_ecg()
+  render/          # Phase 2: layout templates + ECGRenderer
 phototrace/        # digitization models (Phases 6-7)
-tests/             # pytest suite
+scripts/           # inspect_ecg.py, render_ecg.py
+tests/             # pytest suite (41 tests)
 data/              # source ECG files & datasets (gitignored)
 artifacts/         # generated images & outputs (gitignored)
 ```

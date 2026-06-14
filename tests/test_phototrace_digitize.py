@@ -7,6 +7,9 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+# Only the training test is genuinely slow; the rest (losses/metrics) are fast,
+# so we mark the slow one individually below rather than the whole module.
+
 from phototrace.digitize_data import StripDataset, build_strip_examples, y_to_mv  # noqa: E402
 from phototrace.losses import morphology_weighted_loss, qrs_peak_mask  # noqa: E402
 from phototrace.metrics import (  # noqa: E402
@@ -95,6 +98,7 @@ def test_baseline_removal_reduces_drift():
 
 
 # --- strip data correctness -------------------------------------------------
+@pytest.mark.slow
 @pytest.mark.skipif(not DUMMY_XML.exists(), reason="sample absent")
 def test_strip_examples_reconstruct_signal():
     from physiorender.ingest import load_ecg
@@ -118,6 +122,7 @@ def test_strip_examples_reconstruct_signal():
 
 
 # --- training ---------------------------------------------------------------
+@pytest.mark.slow
 @pytest.mark.skipif(not DUMMY_XML.exists(), reason="sample absent")
 def test_digitizer_learns_to_read_trace():
     from physiorender.ingest import load_ecg

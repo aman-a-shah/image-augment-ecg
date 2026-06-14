@@ -63,6 +63,7 @@ def trained():
     return rec, render, pipe
 
 
+@pytest.mark.slow
 def test_end_to_end_digitization_recovers_signal(trained):
     rec, render, pipe = trained
     signals = pipe.digitize(render.image)
@@ -81,6 +82,7 @@ def test_end_to_end_digitization_recovers_signal(trained):
     assert np.mean(corrs) > 0.85, corrs
 
 
+@pytest.mark.slow
 def test_domain_gap_harness_learned_beats_naive(trained):
     rec, render, pipe = trained
     gray_clean = np.asarray(render.image.convert("L"), np.float32) / 255.0

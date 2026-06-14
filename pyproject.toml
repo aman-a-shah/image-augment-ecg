@@ -47,6 +47,9 @@ include = ["physiorender*", "phototrace*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "slow: model-training tests that take minutes (deselect with -m 'not slow')",
+]
 
 [tool.ruff]
 line-length = 100

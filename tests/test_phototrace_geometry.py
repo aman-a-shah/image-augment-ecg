@@ -10,6 +10,8 @@ from PIL import Image
 
 torch = pytest.importorskip("torch")
 
+pytestmark = pytest.mark.slow  # trains models; deselect with -m "not slow"
+
 from physiorender.dataset_gen import generate_dataset  # noqa: E402
 
 from phototrace.data import BBOX_KEYS, ECGPhotoDataset  # noqa: E402

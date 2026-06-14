@@ -13,7 +13,8 @@ See `plan.md` for the full PRD and `roadmap.md` for the phased build plan.
 
 ## Status
 
-**Phases 0–3 complete** (61 passing tests). See `roadmap.md`.
+**Phases 0–4 complete** (83 passing tests). The PhysioRender side (XML →
+augmented photo + metadata) is end-to-end functional. See `roadmap.md`.
 
 - **Phase 0 — contracts:** `AugmentationParams` (plan §7), `ECGMetadata` (plan §8)
 - **Phase 1 — ingestion:** format-adaptive loader → validated `ECGRecord` in mV
@@ -23,6 +24,9 @@ See `plan.md` for the full PRD and `roadmap.md` for the phased build plan.
 - **Phase 3 — degradation (layers 1–2):** paper aging + handling (yellowing, ink
   variation, light-consistent wrinkles/folds, edge curl, stains/pen/fingerprint),
   with an invertible composite warp field (plan §6.L1–L2)
+- **Phase 4 — capture (layers 3–5):** lens distortion, perspective (exports
+  `H_inv`), blur, framing/background, lighting/specular/banding/shadow, sensor
+  noise + JPEG. Full pipeline emits JPEG + `metadata.json` + `warp_*.npy` (plan §6.L3–L5, §8)
 
 Try it:
 
@@ -30,6 +34,7 @@ Try it:
 python scripts/inspect_ecg.py        data/dummy-ecg.xml          # detect + extract + plot
 python scripts/render_ecg.py         data/dummy-ecg.xml --bbox   # render clean printout
 python scripts/visual_test_degrade.py data/dummy-ecg.xml         # dump each degradation layer
+python scripts/augment.py            data/dummy-ecg.xml --n 3 --bbox   # full pipeline -> dataset
 ```
 
 ## Layout
@@ -42,10 +47,11 @@ physiorender/
   logging_setup.py # shared logging
   ingest/          # Phase 1: format detection, extractors, validation, load_ecg()
   render/          # Phase 2: layout templates + ECGRenderer
-  degrade/         # Phase 3: noise, warp, light, layer1/2, DegradationEngine
+  degrade/         # Phase 3-4: noise, warp, light, layer1-5, DegradationEngine
+  assemble.py      # Phase 4: build_metadata() from pipeline outputs
 phototrace/        # digitization models (Phases 6-7)
-scripts/           # inspect_ecg.py, render_ecg.py, visual_test_degrade.py
-tests/             # pytest suite (61 tests)
+scripts/           # inspect_ecg.py, render_ecg.py, visual_test_degrade.py, augment.py
+tests/             # pytest suite (83 tests)
 data/              # source ECG files & datasets (gitignored)
 artifacts/         # generated images & outputs (gitignored)
 ```

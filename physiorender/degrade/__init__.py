@@ -7,13 +7,14 @@ functions are exposed for isolated visual unit testing.
 
 from __future__ import annotations
 
-from .engine import DegradationEngine, DegradationResult
+from .engine import AugmentationResult, DegradationEngine, DegradationResult
 from .light import LightSource
 from .warp import DisplacementField, apply_displacement, invert_displacement
 
 __all__ = [
     "DegradationEngine",
     "DegradationResult",
+    "AugmentationResult",
     "LightSource",
     "DisplacementField",
     "apply_displacement",

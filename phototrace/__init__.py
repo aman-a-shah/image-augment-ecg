@@ -1,7 +1,11 @@
-"""PhotoTrace — recovers clean waveform signal from an ECG photo.
+"""PhotoTrace — recovers clean waveform signal from an ECG photo (plan §9).
 
-Model code lands in Phases 6-7. This package is a placeholder in Phase 0 so the
-import surface and repo layout are stable.
+Stage 1 (perspective correction) + Stage 2 (lead segmentation) + Stage 3
+(column-wise digitization), plus the end-to-end :class:`DigitizationPipeline`
+and the domain-gap evaluation harness.
+
+Submodules import torch lazily (import them directly) so the package itself stays
+import-light.
 """
 
 from __future__ import annotations

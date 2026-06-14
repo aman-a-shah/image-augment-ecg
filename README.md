@@ -13,28 +13,36 @@ See `plan.md` for the full PRD and `roadmap.md` for the phased build plan.
 
 ## Status
 
-**Phases 0–4 complete** (83 passing tests). The PhysioRender side (XML →
-augmented photo + metadata) is end-to-end functional. See `roadmap.md`.
+**All 8 phases implemented.** PhysioRender (XML → augmented photo + metadata) is
+fully functional; PhotoTrace (photo → digitized signal) trains and runs
+end-to-end. The only items outstanding need *real printed-and-photographed ECGs*
+or the project's *external digital ECG model* — see `roadmap.md`. Architecture:
+`docs/ARCHITECTURE.md`.
 
+**PhysioRender** (`physiorender/`)
 - **Phase 0 — contracts:** `AugmentationParams` (plan §7), `ECGMetadata` (plan §8)
 - **Phase 1 — ingestion:** format-adaptive loader → validated `ECGRecord` in mV
-  (CardiologyXML full impl, generic heuristic + WFDB fallbacks; plan §4)
-- **Phase 2 — renderer:** `ECGRecord` → photorealistic clean 12-lead printout at
-  300 DPI with grid, calibration pulse, and per-lead bboxes (plan §5)
-- **Phase 3 — degradation (layers 1–2):** paper aging + handling (yellowing, ink
-  variation, light-consistent wrinkles/folds, edge curl, stains/pen/fingerprint),
-  with an invertible composite warp field (plan §6.L1–L2)
-- **Phase 4 — capture (layers 3–5):** lens distortion, perspective (exports
-  `H_inv`), blur, framing/background, lighting/specular/banding/shadow, sensor
-  noise + JPEG. Full pipeline emits JPEG + `metadata.json` + `warp_*.npy` (plan §6.L3–L5, §8)
+- **Phase 2 — renderer:** clean 12-lead printout @300 DPI + per-lead bboxes
+- **Phase 3 — degradation L1–2:** paper aging + light-consistent handling, invertible warp
+- **Phase 4 — capture L3–5:** lens/perspective(`H_inv`)/blur/lighting/noise/JPEG → JPEG + metadata + warp
+- **Phase 5 — data factory:** correlation-aware `ParameterSampler`, batch generation, calibration tooling
+
+**PhotoTrace** (`phototrace/`)
+- **Phase 6 — geometry:** Stage 1 corner regression (unwarp) + Stage 2 lead detection
+- **Phase 7 — digitization:** Stage 3 soft-argmax column digitizer + morphology loss + DTW/F1 metrics
+- **Phase 8 — end-to-end:** `DigitizationPipeline`, domain-gap harness, `physiocam` CLI
 
 Try it:
 
 ```bash
-python scripts/inspect_ecg.py        data/dummy-ecg.xml          # detect + extract + plot
-python scripts/render_ecg.py         data/dummy-ecg.xml --bbox   # render clean printout
-python scripts/visual_test_degrade.py data/dummy-ecg.xml         # dump each degradation layer
-python scripts/augment.py            data/dummy-ecg.xml --n 3 --bbox   # full pipeline -> dataset
+# PhysioRender
+python -m physiorender.cli inspect  data/dummy-ecg.xml
+python -m physiorender.cli render   data/dummy-ecg.xml
+python -m physiorender.cli augment  data/dummy-ecg.xml --n 3
+python -m physiorender.cli generate data/dummy-ecg.xml --n 200 --out artifacts/train
+
+# PhotoTrace
+python scripts/train_phototrace.py --data artifacts/train --digitizer-source data/dummy-ecg.xml
 ```
 
 ## Layout

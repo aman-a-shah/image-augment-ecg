@@ -25,40 +25,14 @@ from PIL import ImageDraw  # noqa: E402
 from physiorender.assemble import build_metadata  # noqa: E402
 from physiorender.degrade import DegradationEngine  # noqa: E402
 from physiorender.ingest import load_ecg  # noqa: E402
-from physiorender.params import AugmentationParams  # noqa: E402
 from physiorender.render import ECGRenderer  # noqa: E402
+from physiorender.sampling import ParameterSampler  # noqa: E402
+
+_SAMPLER = ParameterSampler()
 
 
-def sample_params(rng: np.random.Generator) -> AugmentationParams:
-    """Stand-in sampler (Phase 5 will replace with correlation-aware sampling)."""
-    blur = str(rng.choice(["motion", "defocus", "handshake", "none"]))
-    return AugmentationParams(
-        yellowing_intensity=float(rng.uniform(0.05, 0.3)),
-        ink_density_variation=float(rng.uniform(0.0, 0.08)),
-        n_wrinkles=int(rng.integers(0, 7)),
-        wrinkle_intensity=float(rng.uniform(0.3, 1.0)),
-        n_folds=int(rng.integers(0, 3)),
-        has_stain=bool(rng.random() < 0.3),
-        stain_opacity=float(rng.uniform(0.1, 0.4)),
-        has_pen_marks=bool(rng.random() < 0.2),
-        tilt_x_deg=float(np.clip(rng.normal(0, 8), -15, 15)),
-        tilt_y_deg=float(np.clip(rng.normal(0, 10), -18, 18)),
-        rotation_deg=float(np.clip(rng.normal(0, 4), -6, 6)),
-        blur_type=blur,
-        blur_strength=float(rng.uniform(0.2, 0.8)) if blur != "none" else 0.0,
-        lens_k1=float(rng.uniform(0.0, 0.08)),
-        has_lens_dirt=bool(rng.random() < 0.2),
-        crop_margin=float(rng.uniform(0.02, 0.15)),
-        light_angle_deg=float(rng.uniform(0, 360)),
-        light_elevation_deg=float(rng.uniform(20, 70)),
-        has_specular=bool(rng.random() < 0.35),
-        specular_intensity=float(rng.uniform(0.3, 0.9)),
-        has_fl_banding=bool(rng.random() < 0.3),
-        shadow_width_fraction=float(rng.uniform(0.0, 0.25)),
-        jpeg_quality=int(rng.integers(65, 89)),
-        noise_iso_equiv=int(rng.integers(100, 1601)),
-        colour_temp_delta_k=int(rng.integers(-300, 301)),
-    )
+def sample_params(rng: np.random.Generator):
+    return _SAMPLER.sample(rng)
 
 
 def main() -> int:

@@ -1,0 +1,36 @@
+# Planning docs (kept local)
+plan.md
+roadmap.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Testing / tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Project data & outputs (large / generated)
+data/
+artifacts/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

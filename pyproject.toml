@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecg-photo-realism"
+version = "0.1.0"
+description = "PhysioRender + PhotoTrace: a physically-grounded ECG photo simulator and digitization pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "aman shah" }]
+
+# Heavy runtime deps are declared here but only needed from Phase 1 onward.
+# The Phase 0 contracts (physiorender.params / physiorender.metadata) are
+# pure-stdlib by design, so tests run without installing this stack.
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "opencv-python>=4.9",
+    "Pillow>=10.0",
+    "matplotlib>=3.8",
+    "lxml>=5.0",
+    "wfdb>=4.1",
+    "neurokit2>=0.2.7",
+    "noise>=1.2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+# Model-training stack, pulled in starting Phase 6.
+ml = [
+    "torch>=2.2",
+    "torchvision>=0.17",
+]
+
+[project.scripts]
+# Wired up in later phases; declared now so the entry point is stable.
+physiocam = "physiorender.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["physiorender*", "phototrace*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

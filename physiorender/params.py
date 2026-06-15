@@ -40,6 +40,21 @@ FIELD_RANGES: dict[str, tuple[float, float]] = {
     "jpeg_quality": (65, 88),
     "noise_iso_equiv": (100, 1600),
     "colour_temp_delta_k": (-300, 300),
+    "second_jpeg_quality": (40, 95),
+    # Global tone / ISP (added for diversity)
+    "contrast": (0.65, 1.45),
+    "brightness": (0.78, 1.22),
+    "gamma": (0.7, 1.55),
+    "saturation": (0.45, 1.55),
+    "vignette_strength": (0.0, 0.6),
+    "chromatic_aberration": (0.0, 2.5),
+    "moire_strength": (0.0, 0.35),
+    "sharpen_strength": (0.0, 0.8),
+    # Counts (structural multiplicity)
+    "n_stains": (0, 4),
+    "n_pen_marks": (0, 3),
+    "n_specular": (0, 3),
+    "n_fingerprints": (0, 2),
 }
 
 VALID_BLUR_TYPES: tuple[str, ...] = ("motion", "defocus", "handshake", "none")
@@ -87,6 +102,38 @@ class AugmentationParams:
     jpeg_quality: int = 85
     noise_iso_equiv: int = 200
     colour_temp_delta_k: int = 0
+    second_jpeg_quality: int = 95          # second compression pass; >=90 ~ no-op
+
+    # --- Global tone / ISP (neutral defaults = no-op) ---
+    contrast: float = 1.0
+    brightness: float = 1.0
+    gamma: float = 1.0
+    saturation: float = 1.0
+    vignette_strength: float = 0.0
+    chromatic_aberration: float = 0.0      # px of radial channel split
+    moire_strength: float = 0.0
+    sharpen_strength: float = 0.0
+
+    # --- Structural multiplicity (supersede the has_* booleans when > 0) ---
+    n_stains: int = 0
+    n_pen_marks: int = 0
+    n_specular: int = 0
+    n_fingerprints: int = 0
+
+    # ------------------------------------------------------------------ #
+    # Derived counts: prefer explicit counts, fall back to legacy booleans.
+    # ------------------------------------------------------------------ #
+    @property
+    def stain_count(self) -> int:
+        return self.n_stains if self.n_stains > 0 else (1 if self.has_stain else 0)
+
+    @property
+    def pen_count(self) -> int:
+        return self.n_pen_marks if self.n_pen_marks > 0 else (1 if self.has_pen_marks else 0)
+
+    @property
+    def specular_count(self) -> int:
+        return self.n_specular if self.n_specular > 0 else (1 if self.has_specular else 0)
 
     # ------------------------------------------------------------------ #
     # Serialization

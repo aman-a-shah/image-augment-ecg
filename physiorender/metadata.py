@@ -54,6 +54,8 @@ class ECGMetadata:
     homography_inv: list[list[float]]
     # Filename of the dense inverse displacement field (.npy), or None (plan §8).
     warp_field: Optional[str] = None
+    # Randomized render style used for this image (traceability; diversity overhaul).
+    render_style: Optional[dict] = None
 
     # ------------------------------------------------------------------ #
     # Serialization
@@ -70,6 +72,7 @@ class ECGMetadata:
             "augmentation": self.augmentation.to_dict(),
             "homography_inv": self.homography_inv,
             "warp_field": self.warp_field,
+            "render_style": self.render_style,
         }
 
     @classmethod
@@ -88,6 +91,7 @@ class ECGMetadata:
             augmentation=augmentation,
             homography_inv=data["homography_inv"],
             warp_field=data.get("warp_field"),
+            render_style=data.get("render_style"),
         )
 
     def to_json(self, *, indent: int | None = 2) -> str:

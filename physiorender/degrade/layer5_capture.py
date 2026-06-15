@@ -49,6 +49,53 @@ def apply_color_temperature(img: np.ndarray, *, delta_k: int) -> np.ndarray:
     return out
 
 
+def apply_tone(img: np.ndarray, *, contrast: float = 1.0, brightness: float = 1.0,
+               gamma: float = 1.0, saturation: float = 1.0) -> np.ndarray:
+    """Camera ISP tone curve: gamma, contrast, brightness, saturation.
+
+    Neutral defaults (all 1.0) are a no-op.
+    """
+    out = np.clip(img, 0, 1)
+    if gamma != 1.0:
+        out = np.clip(out, 1e-6, 1) ** gamma
+    if contrast != 1.0:
+        out = (out - 0.5) * contrast + 0.5
+    if brightness != 1.0:
+        out = out * brightness
+    out = np.clip(out, 0, 1)
+    if saturation != 1.0:
+        gray = (out @ np.array([0.299, 0.587, 0.114], np.float32))[..., None]
+        out = np.clip(gray + (out - gray) * saturation, 0, 1)
+    return out.astype(np.float32)
+
+
+def apply_chromatic_aberration(img: np.ndarray, *, px: float) -> np.ndarray:
+    """Radial RGB channel split (cheap-lens fringing). ``px`` ~ shift at corners."""
+    if px <= 0:
+        return img
+    h, w = img.shape[:2]
+    diag = 0.5 * np.hypot(w, h)
+    e = px / diag
+
+    def _scale(ch: np.ndarray, s: float) -> np.ndarray:
+        M = np.array([[s, 0, (1 - s) * w / 2], [0, s, (1 - s) * h / 2]], np.float32)
+        return cv2.warpAffine(ch, M, (w, h), flags=cv2.INTER_LINEAR,
+                              borderMode=cv2.BORDER_REFLECT_101)
+
+    out = img.copy()
+    out[..., 0] = _scale(img[..., 0], 1.0 + e)   # red expands
+    out[..., 2] = _scale(img[..., 2], 1.0 - e)   # blue contracts
+    return np.clip(out, 0, 1)
+
+
+def apply_sharpen(img: np.ndarray, *, strength: float) -> np.ndarray:
+    """Unsharp masking — phones often over-sharpen."""
+    if strength <= 0:
+        return img
+    blur = cv2.GaussianBlur(img, (0, 0), sigmaX=1.2)
+    return np.clip(img + strength * (img - blur), 0, 1).astype(np.float32)
+
+
 def apply_jpeg(img: np.ndarray, *, quality: int) -> np.ndarray:
     """Encode then decode as JPEG so blocking artifacts enter the pixels (plan §6 L5)."""
     bgr = cv2.cvtColor((np.clip(img, 0, 1) * 255).astype(np.uint8), cv2.COLOR_RGB2BGR)

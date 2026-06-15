@@ -21,6 +21,7 @@ from .. import config
 from ..ingest.record import ECGRecord
 from ..logging_setup import get_logger
 from .layout import LayoutSpec, PanelSpec, build_standard_12lead
+from .style import RenderStyle, default_style
 
 log = get_logger(__name__)
 
@@ -39,6 +40,8 @@ class RenderResult:
     paper_speed_mm_s: int
     gain_mm_mv: int
     dpi: int
+    layout: LayoutSpec | None = None    # the exact layout used (varies with style)
+    style: RenderStyle | None = None
     meta: dict = field(default_factory=dict)
 
     def save(self, path: str | Path) -> None:
@@ -53,13 +56,20 @@ class ECGRenderer:
         self,
         *,
         dpi: int = config.DEFAULT_DPI,
-        paper_speed_mm_s: int = config.DEFAULT_PAPER_SPEED_MM_S,
-        gain_mm_mv: int = config.DEFAULT_GAIN_MM_MV,
+        paper_speed_mm_s: int | None = None,
+        gain_mm_mv: int | None = None,
+        style: RenderStyle | None = None,
         supersample: int = 2,
     ) -> None:
         self.dpi = dpi
-        self.paper_speed_mm_s = paper_speed_mm_s
-        self.gain_mm_mv = gain_mm_mv
+        self.style = style or default_style()
+        # Explicit speed/gain args override the style (back-compat).
+        if paper_speed_mm_s is not None:
+            self.style.paper_speed_mm_s = paper_speed_mm_s
+        if gain_mm_mv is not None:
+            self.style.gain_mm_mv = gain_mm_mv
+        self.paper_speed_mm_s = self.style.paper_speed_mm_s
+        self.gain_mm_mv = self.style.gain_mm_mv
         self.ss = max(1, int(supersample))
         # pixels per mm in the supersampled drawing space
         self._ppm = config.mm_to_px(1.0, dpi) * self.ss
@@ -67,15 +77,16 @@ class ECGRenderer:
     # ------------------------------------------------------------------ #
     def render(self, record: ECGRecord, layout: LayoutSpec | None = None) -> RenderResult:
         if layout is None:
-            layout = build_standard_12lead(rhythm=True)
+            layout = build_standard_12lead(style=self.style)
 
         W = int(round(layout.page_w_mm * self._ppm))
         H = int(round(layout.page_h_mm * self._ppm))
-        img = Image.new("RGB", (W, H), config.COLOR_BACKGROUND)
+        img = Image.new("RGB", (W, H), self.style.bg_color)
         draw = ImageDraw.Draw(img)
 
         self._draw_grid(draw, layout)
-        self._draw_header(draw, record, layout)
+        if self.style.show_header:
+            self._draw_header(draw, record, layout)
 
         bboxes_ss: dict[str, list[int]] = {}
         for panel in layout.panels:
@@ -85,7 +96,8 @@ class ECGRenderer:
             self._draw_panel(draw, record, panel)
             bboxes_ss[panel.bbox_key] = self._panel_bbox_px(panel)
 
-        self._draw_calibration_pulses(draw, layout)
+        if self.style.show_calibration:
+            self._draw_calibration_pulses(draw, layout)
 
         # Downsample for anti-aliasing.
         if self.ss > 1:
@@ -102,6 +114,8 @@ class ECGRenderer:
             paper_speed_mm_s=self.paper_speed_mm_s,
             gain_mm_mv=self.gain_mm_mv,
             dpi=self.dpi,
+            layout=layout,
+            style=self.style,
             meta={"page_w_mm": layout.page_w_mm, "page_h_mm": layout.page_h_mm},
         )
 
@@ -136,30 +150,29 @@ class ECGRenderer:
         w_mm, h_mm = layout.page_w_mm, layout.page_h_mm
         small_w = max(1, int(round(0.12 * self._ppm)))
         large_w = max(1, int(round(0.25 * self._ppm)))
+        minor_color = self.style.faded(self.style.grid_minor_color)
+        major_color = self.style.faded(self.style.grid_major_color)
 
-        # Small 1mm grid
-        n_x = int(w_mm / config.SMALL_GRID_MM)
-        n_y = int(h_mm / config.SMALL_GRID_MM)
-        for i in range(n_x + 1):
-            x = self._mm_x(i * config.SMALL_GRID_MM)
-            draw.line([(x, 0), (x, h_mm * self._ppm)],
-                      fill=config.COLOR_GRID_SMALL, width=small_w)
-        for j in range(n_y + 1):
-            y = self._mm_y(j * config.SMALL_GRID_MM)
-            draw.line([(0, y), (w_mm * self._ppm, y)],
-                      fill=config.COLOR_GRID_SMALL, width=small_w)
+        # Small 1mm grid (optional)
+        if self.style.show_minor_grid:
+            n_x = int(w_mm / config.SMALL_GRID_MM)
+            n_y = int(h_mm / config.SMALL_GRID_MM)
+            for i in range(n_x + 1):
+                x = self._mm_x(i * config.SMALL_GRID_MM)
+                draw.line([(x, 0), (x, h_mm * self._ppm)], fill=minor_color, width=small_w)
+            for j in range(n_y + 1):
+                y = self._mm_y(j * config.SMALL_GRID_MM)
+                draw.line([(0, y), (w_mm * self._ppm, y)], fill=minor_color, width=small_w)
 
         # Large 5mm grid (drawn over small)
         n_x = int(w_mm / config.LARGE_GRID_MM)
         n_y = int(h_mm / config.LARGE_GRID_MM)
         for i in range(n_x + 1):
             x = self._mm_x(i * config.LARGE_GRID_MM)
-            draw.line([(x, 0), (x, h_mm * self._ppm)],
-                      fill=config.COLOR_GRID_LARGE, width=large_w)
+            draw.line([(x, 0), (x, h_mm * self._ppm)], fill=major_color, width=large_w)
         for j in range(n_y + 1):
             y = self._mm_y(j * config.LARGE_GRID_MM)
-            draw.line([(0, y), (w_mm * self._ppm, y)],
-                      fill=config.COLOR_GRID_LARGE, width=large_w)
+            draw.line([(0, y), (w_mm * self._ppm, y)], fill=major_color, width=large_w)
 
     def _draw_panel(self, draw: ImageDraw.ImageDraw,
                     record: ECGRecord, panel: PanelSpec) -> None:
@@ -176,12 +189,12 @@ class ECGRenderer:
             t_rel = k / fs
             pts.append((self._x_for_time(panel, t_rel), self._y_for_mv(panel, float(mv))))
 
-        trace_w = max(1, int(round(config.TRACE_WIDTH_MM * self._ppm)))
-        draw.line(pts, fill=config.COLOR_TRACE, width=trace_w, joint="curve")
+        trace_w = max(1, int(round(self.style.trace_width_mm * self._ppm)))
+        draw.line(pts, fill=self.style.trace_color, width=trace_w, joint="curve")
 
         # Lead label, top-left inside the panel.
         self._text(draw, panel.x_mm + 1.0, panel.y_mm + 1.0, panel.lead,
-                   size_mm=3.0, bold=True)
+                   size_mm=3.0 * self.style.label_scale, bold=True)
 
     def _draw_calibration_pulses(self, draw: ImageDraw.ImageDraw,
                                  layout: LayoutSpec) -> None:
@@ -190,7 +203,7 @@ class ECGRenderer:
         pulse_w_px = _CAL_PULSE_S * self.paper_speed_mm_s * self._ppm
         x_start = self._mm_x(layout.panels[0].x_mm) - self._mm_x(_CAL_GAP_MM) - pulse_w_px
         x_start = max(self._mm_x(1.0), x_start)
-        trace_w = max(1, int(round(config.TRACE_WIDTH_MM * self._ppm)))
+        trace_w = max(1, int(round(self.style.trace_width_mm * self._ppm)))
 
         for baseline_mm in layout.calibration_row_baselines_mm:
             b = self._mm_y(baseline_mm)
@@ -201,7 +214,7 @@ class ECGRenderer:
                 (x_start + pulse_w_px, top),
                 (x_start + pulse_w_px, b),
             ]
-            draw.line(pts, fill=config.COLOR_TRACE, width=trace_w, joint="curve")
+            draw.line(pts, fill=self.style.trace_color, width=trace_w, joint="curve")
 
     def _draw_header(self, draw: ImageDraw.ImageDraw,
                      record: ECGRecord, layout: LayoutSpec) -> None:
@@ -209,17 +222,16 @@ class ECGRenderer:
         line1 = f"ECG  |  {name}"
         line2 = (f"{self.paper_speed_mm_s} mm/s   {self.gain_mm_mv} mm/mV   "
                  f"{record.sample_rate_hz} Hz   {record.n_leads} leads")
-        self._text(draw, layout.panels[0].x_mm if layout.panels else 12.0, 4.0,
-                   line1, size_mm=4.0, bold=True)
-        self._text(draw, layout.panels[0].x_mm if layout.panels else 12.0, 10.0,
-                   line2, size_mm=3.0)
+        hx = layout.panels[0].x_mm if layout.panels else 12.0
+        self._text(draw, hx, 4.0, line1, size_mm=4.0 * self.style.header_scale, bold=True)
+        self._text(draw, hx, 10.0, line2, size_mm=3.0 * self.style.header_scale)
 
     # ------------------------------------------------------------------ #
     def _text(self, draw: ImageDraw.ImageDraw, x_mm: float, y_mm: float,
               text: str, *, size_mm: float, bold: bool = False) -> None:
         font = _load_font(int(round(size_mm * self._ppm)), bold=bold)
         draw.text((self._mm_x(x_mm), self._mm_y(y_mm)), text,
-                  fill=config.COLOR_TRACE, font=font)
+                  fill=self.style.trace_color, font=font)
 
 
 # Font loading: prefer a real TTF for crisp labels, fall back to PIL default.

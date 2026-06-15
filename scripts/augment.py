@@ -51,15 +51,15 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     record = load_ecg(args.path, validate=True)
-    render = ECGRenderer(dpi=args.dpi, paper_speed_mm_s=args.speed,
-                         gain_mm_mv=args.gain).render(record)
     engine = DegradationEngine(dpi=args.dpi)
     stem = Path(args.path).stem
 
     for i in range(args.n):
         seed = args.seed + i
         rng = np.random.default_rng(seed)
+        style = _SAMPLER.sample_style(rng)
         params = sample_params(rng)
+        render = ECGRenderer(dpi=args.dpi, style=style).render(record)
         result = engine.augment(render.image, params, seed=seed,
                                 lead_bboxes=render.lead_bboxes)
 

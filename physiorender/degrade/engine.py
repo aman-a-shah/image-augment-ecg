@@ -115,15 +115,22 @@ class DegradationEngine:
 
         # --- Layer 2: handling degradation ---
         # Overlays first (on flat paper, so they deform with the warp).
-        if params.has_stain:
-            arr = l2.add_stain(arr, rng, opacity=params.stain_opacity)
-            applied.append("stain")
-        if params.has_pen_marks:
+        n_stains = params.stain_count
+        for _ in range(n_stains):
+            arr = l2.add_stain(arr, rng, opacity=params.stain_opacity * rng.uniform(0.7, 1.2))
+        if n_stains:
+            applied.append(f"stain×{n_stains}")
+        n_pens = params.pen_count
+        for _ in range(n_pens):
             arr = l2.add_pen_marks(arr, rng)
-            applied.append("pen_marks")
-        if rng.random() < 0.40:  # fingerprint probability (plan §6 L2)
-            arr = l2.add_fingerprint(arr, rng)
-            applied.append("fingerprint")
+        if n_pens:
+            applied.append(f"pen×{n_pens}")
+        n_fp = params.n_fingerprints if params.n_fingerprints > 0 else (
+            1 if rng.random() < 0.40 else 0)
+        for _ in range(n_fp):
+            arr = l2.add_fingerprint(arr, rng, opacity=rng.uniform(0.08, 0.2))
+        if n_fp:
+            applied.append(f"fingerprint×{n_fp}")
 
         # Creases & curl: brightness now, displacement accumulated for one remap.
         if params.n_wrinkles > 0 and params.wrinkle_intensity > 0:
@@ -205,7 +212,7 @@ class DegradationEngine:
         for key, bbox in (lead_bboxes or {}).items():
             post_bboxes[key] = l3.transform_bbox(bbox, lens, persp.H, out_size)
 
-        # --- Layer 3: blur (post-warp) + lens dirt ---
+        # --- Layer 3: blur (post-warp) + lens dirt + chromatic aberration ---
         photo = l3.apply_blur(photo, rng, blur_type=params.blur_type,
                               strength=params.blur_strength, ppm=self.ppm)
         if params.blur_type != "none" and params.blur_strength > 0:
@@ -213,13 +220,23 @@ class DegradationEngine:
         if params.has_lens_dirt:
             photo = l3.apply_lens_dirt(photo, rng)
             applied.append("lens_dirt")
+        if params.chromatic_aberration > 0:
+            photo = l5.apply_chromatic_aberration(photo, px=params.chromatic_aberration)
+            applied.append("chromatic_aberration")
 
         # --- Layer 4: lighting & environment ---
-        photo = l4.apply_ambient_gradient(photo, light, strength=rng.uniform(0.12, 0.25))
+        photo = l4.apply_ambient_gradient(photo, light, strength=rng.uniform(0.10, 0.26))
         applied.append("ambient")
-        if params.has_specular:
-            photo = l4.apply_specular(photo, rng, light, intensity=params.specular_intensity)
-            applied.append("specular")
+        if rng.random() < 0.35:  # occasional second light source (breaks single-light prior)
+            light2 = LightSource(rng.uniform(0, 360), rng.uniform(20, 70))
+            photo = l4.apply_ambient_gradient(photo, light2, strength=rng.uniform(0.06, 0.16))
+            applied.append("ambient2")
+        n_spec = params.specular_count
+        for _ in range(n_spec):
+            photo = l4.apply_specular(photo, rng, light,
+                                      intensity=params.specular_intensity * rng.uniform(0.7, 1.1))
+        if n_spec:
+            applied.append(f"specular×{n_spec}")
         if params.has_fl_banding:
             photo = l4.apply_fluorescent_banding(photo, rng)
             applied.append("fl_banding")
@@ -227,12 +244,26 @@ class DegradationEngine:
             photo = l4.apply_hand_shadow(photo, rng,
                                          width_fraction=params.shadow_width_fraction)
             applied.append("hand_shadow")
+        if params.vignette_strength > 0:
+            photo = l4.apply_vignette(photo, rng, strength=params.vignette_strength)
+            applied.append("vignette")
+        if params.moire_strength > 0:
+            photo = l4.apply_moire(photo, rng, strength=params.moire_strength)
+            applied.append("moire")
 
-        # --- Layer 5: sensor noise, white balance, JPEG ---
+        # --- Layer 5: sensor noise -> ISP tone -> sharpen -> JPEG (capture order) ---
         photo = l5.apply_sensor_noise(photo, rng, iso_equiv=params.noise_iso_equiv)
+        photo = l5.apply_tone(photo, contrast=params.contrast, brightness=params.brightness,
+                              gamma=params.gamma, saturation=params.saturation)
         photo = l5.apply_color_temperature(photo, delta_k=params.colour_temp_delta_k)
+        if params.sharpen_strength > 0:
+            photo = l5.apply_sharpen(photo, strength=params.sharpen_strength)
+            applied.append("sharpen")
         photo = l5.apply_jpeg(photo, quality=params.jpeg_quality)
-        applied += ["sensor_noise", "color_temp", "jpeg"]
+        applied += ["sensor_noise", "tone", "color_temp", "jpeg"]
+        if params.second_jpeg_quality < 90:  # re-saved/messaged image
+            photo = l5.apply_jpeg(photo, quality=params.second_jpeg_quality)
+            applied.append("jpeg2")
 
         log.info("augment(seed=%d): %s", seed, ", ".join(applied))
         return AugmentationResult(

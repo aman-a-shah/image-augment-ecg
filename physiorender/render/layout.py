@@ -69,11 +69,27 @@ class LayoutSpec:
 
 
 def build_standard_12lead(*, rhythm: bool = True,
-                          strip_seconds: float = STRIP_SECONDS) -> LayoutSpec:
+                          strip_seconds: float = STRIP_SECONDS,
+                          style=None) -> LayoutSpec:
     """Build the standard 3x4 layout, optionally with a 10s rhythm strip (II).
 
     plan §5.2: "Standard 12-lead with rhythm strip: same + full 10s lead II."
+    Geometry (margins, row height, strip length, template) comes from ``style``
+    when provided, so the page layout itself varies per image.
     """
+    if style is not None:
+        margin_left = style.margin_left_mm
+        margin_right = style.margin_right_mm
+        margin_top = style.margin_top_mm
+        margin_bottom = style.margin_bottom_mm
+        row_height = style.row_height_mm
+        strip_seconds = style.strip_seconds
+        rhythm = style.template == "standard_12lead_rhythm"
+    else:
+        margin_left, margin_right = MARGIN_LEFT_MM, MARGIN_RIGHT_MM
+        margin_top, margin_bottom = MARGIN_TOP_MM, MARGIN_BOTTOM_MM
+        row_height = ROW_HEIGHT_MM
+
     n_cols = len(GRID_ROWS[0])
     col_w = strip_seconds * 25.0  # mm at 25 mm/s reference; renderer rescales by speed
     # NB: column *width in mm* is defined at the standard 25 mm/s so the page has a
@@ -83,32 +99,32 @@ def build_standard_12lead(*, rhythm: bool = True,
     cal_baselines: list[float] = []
 
     for r, row_leads in enumerate(GRID_ROWS):
-        y = MARGIN_TOP_MM + r * ROW_HEIGHT_MM
-        cal_baselines.append(y + ROW_HEIGHT_MM / 2.0)
+        y = margin_top + r * row_height
+        cal_baselines.append(y + row_height / 2.0)
         for c, lead in enumerate(row_leads):
-            x = MARGIN_LEFT_MM + c * col_w
+            x = margin_left + c * col_w
             panels.append(PanelSpec(
                 lead=lead,
                 t_start_s=c * strip_seconds,
                 t_dur_s=strip_seconds,
-                x_mm=x, y_mm=y, w_mm=col_w, h_mm=ROW_HEIGHT_MM,
+                x_mm=x, y_mm=y, w_mm=col_w, h_mm=row_height,
             ))
 
-    page_w = MARGIN_LEFT_MM + n_cols * col_w + MARGIN_RIGHT_MM
+    page_w = margin_left + n_cols * col_w + margin_right
     n_rows = len(GRID_ROWS) + (1 if rhythm else 0)
-    page_h = MARGIN_TOP_MM + n_rows * ROW_HEIGHT_MM + MARGIN_BOTTOM_MM
+    page_h = margin_top + n_rows * row_height + margin_bottom
 
     template = "standard_12lead"
     if rhythm:
         template = "standard_12lead_rhythm"
-        y = MARGIN_TOP_MM + len(GRID_ROWS) * ROW_HEIGHT_MM
-        cal_baselines.append(y + ROW_HEIGHT_MM / 2.0)
+        y = margin_top + len(GRID_ROWS) * row_height
+        cal_baselines.append(y + row_height / 2.0)
         panels.append(PanelSpec(
             lead="II",
             t_start_s=0.0,
             t_dur_s=strip_seconds * n_cols,   # full row duration (10s)
-            x_mm=MARGIN_LEFT_MM, y_mm=y,
-            w_mm=n_cols * col_w, h_mm=ROW_HEIGHT_MM,
+            x_mm=margin_left, y_mm=y,
+            w_mm=n_cols * col_w, h_mm=row_height,
             bbox_key="II_rhythm",
         ))
 

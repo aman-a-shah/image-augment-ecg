@@ -131,10 +131,22 @@ expected, not a hang (use `-v` to watch progress).
 
 **PhysioRender** — clean ECG → realistic photo + reversible metadata
 - **Ingestion:** format-adaptive loader (GE CardioSoft XML, generic-XML & WFDB fallbacks) → validated `ECGRecord` in mV
-- **Renderer:** clean 12-lead printout @300 DPI, grid + calibration pulse + per-lead boxes
-- **Degradation L1–2:** paper aging (yellowing, ink density, ink skip) + handling (light-consistent wrinkles/folds, edge curl, stains/pen/fingerprint) with an invertible warp field
-- **Capture L3–5:** lens distortion → perspective (exports `H_inv`) → blur → lighting/specular/banding/shadow → sensor noise → JPEG
-- **Data factory:** correlation-aware `ParameterSampler`, deterministic batch generation, calibration tooling
+- **Renderer + `RenderStyle`:** clean 12-lead printout @300 DPI with a *randomized* style — paper colour, grid hue/fade, trace colour/width, fonts, margins, paper speed, gain, layout template, calibration/header presence
+- **Degradation L1–2:** paper aging (yellowing, ink density, ink skip) + handling (light-consistent wrinkles/folds, edge curl, multiple varied stains/pen/fingerprints) with an invertible warp field
+- **Capture L3–5:** lens distortion + chromatic aberration → perspective (`H_inv`) → blur → multi-light/specular/banding/shadow/vignette/moiré → sensor noise → ISP tone (contrast/gamma/saturation) → sharpen → JPEG (single or double)
+- **Data factory:** hierarchical `ParameterSampler` with a per-image *severity* latent (pristine → trashed), deterministic batch generation, calibration tooling
+
+### Diversity / anti-templating
+
+At billion-scale, a narrow augmentation vocabulary makes a model fingerprint *your*
+augmentations instead of learning real-photo invariance. To avoid that, the clean
+render itself is randomized (not just the degradation), there are ~40 continuous
+degradation parameters plus structural multiplicity (variable counts of
+stains/wrinkles/lights), and a per-image severity latent spreads the dataset
+across the full quality range — so effectively every output is unique. The exact
+`RenderStyle` and `AugmentationParams` for each image are saved in its
+`metadata.json` for full traceability. See `artifacts/diversity_grid.png` for 12
+variants of one ECG.
 
 **PhotoTrace** — photo → signal
 - **Stage 1:** corner regression → perspective unwarp

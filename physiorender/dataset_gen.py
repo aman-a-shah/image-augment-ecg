@@ -73,15 +73,16 @@ def generate_dataset(
                 report.n_failed += 1
                 continue
 
-            render = ECGRenderer(dpi=dpi, paper_speed_mm_s=paper_speed_mm_s,
-                                 gain_mm_mv=gain_mm_mv).render(record)
             stem = Path(src).stem
 
             for _ in range(n_per_source):
                 seed = base_seed + counter
                 counter += 1
                 rng = np.random.default_rng(seed)
+                # Each variant gets its own randomized render style (diversity).
+                style = sampler.sample_style(rng)
                 params = sampler.sample(rng)
+                render = ECGRenderer(dpi=dpi, style=style).render(record)
                 result = engine.augment(render.image, params, seed=seed,
                                         lead_bboxes=render.lead_bboxes)
 

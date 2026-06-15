@@ -56,6 +56,35 @@ def apply_fluorescent_banding(img: np.ndarray, rng: np.random.Generator) -> np.n
     return iu.apply_brightness(img, band[:, None].astype(np.float32))
 
 
+def apply_vignette(img: np.ndarray, rng: np.random.Generator, *, strength: float
+                   ) -> np.ndarray:
+    """Lens/optical vignette: darkening toward the frame edges (off-center)."""
+    if strength <= 0:
+        return img
+    h, w = img.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    cx = w / 2 + rng.uniform(-0.15, 0.15) * w
+    cy = h / 2 + rng.uniform(-0.15, 0.15) * h
+    r2 = (((xx - cx) / (0.75 * w)) ** 2 + ((yy - cy) / (0.75 * h)) ** 2)
+    gain = 1.0 - strength * np.clip(r2, 0, 1)
+    return iu.apply_brightness(img, gain.astype(np.float32))
+
+
+def apply_moire(img: np.ndarray, rng: np.random.Generator, *, strength: float
+                ) -> np.ndarray:
+    """Subtle interference fringing from photographing a fine grid (plan §6 L4-ish)."""
+    if strength <= 0:
+        return img
+    h, w = img.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    ang = rng.uniform(0, math.pi)
+    freq = rng.uniform(0.04, 0.16)
+    phase = rng.uniform(0, 2 * math.pi)
+    pattern = np.sin((xx * math.cos(ang) + yy * math.sin(ang)) * freq + phase)
+    gain = 1.0 + strength * 0.5 * pattern
+    return iu.apply_brightness(img, gain.astype(np.float32))
+
+
 def apply_hand_shadow(img: np.ndarray, rng: np.random.Generator,
                       *, width_fraction: float) -> np.ndarray:
     """Soft shadow cast by the hand, encroaching from one edge (plan §6 L4)."""

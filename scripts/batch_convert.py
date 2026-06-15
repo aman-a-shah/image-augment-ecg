@@ -30,9 +30,22 @@ from physiorender.ingest import load_ecg  # noqa: E402
 from physiorender.render import ECGRenderer  # noqa: E402
 from physiorender.sampling import ParameterSampler  # noqa: E402
 
+import hashlib  # noqa: E402
+
 SIGNAL_EXTS = {".xml", ".hea"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 _PAGE_W_MM = 250.0
+
+
+def _seed_for(path: Path, i: int, base: int) -> int:
+    """A distinct, reproducible seed per (file, variant).
+
+    Hashing the filename means every input file lands in a different region of
+    the augmentation space — so two different ECGs never share a render style,
+    even at --n 1. Variants of one file differ by ``i``.
+    """
+    h = int(hashlib.sha256(path.stem.encode("utf-8")).hexdigest()[:12], 16)
+    return (base + h + i * 1_000_003) % (2 ** 31 - 1)
 
 
 def _compare(before: Image.Image, after: Image.Image, path: Path) -> None:
@@ -51,14 +64,16 @@ def _compare(before: Image.Image, after: Image.Image, path: Path) -> None:
 def _convert_signal(path: Path, out: Path, *, n, seed, dpi, sampler, engine,
                     metadata, compare) -> int:
     record = load_ecg(path, validate=True)
-    render = ECGRenderer(dpi=dpi).render(record)
     made = 0
     for i in range(n):
-        s = seed + i
-        params = sampler.sample(np.random.default_rng(s))
+        s = _seed_for(path, i, seed)
+        rng = np.random.default_rng(s)
+        style = sampler.sample_style(rng)
+        params = sampler.sample(rng)
+        render = ECGRenderer(dpi=dpi, style=style).render(record)
         result = engine.augment(render.image, params, seed=s,
                                 lead_bboxes=render.lead_bboxes)
-        suffix = "" if n == 1 else f"_{s:03d}"
+        suffix = "" if n == 1 else f"_{i:02d}"
         jpg = out / f"{path.stem}_photo{suffix}.jpg"
         result.image.save(jpg, quality=92)
         if metadata:
@@ -79,10 +94,10 @@ def _convert_image(path: Path, out: Path, *, n, seed, sampler, compare) -> int:
     engine = DegradationEngine(dpi=dpi)
     made = 0
     for i in range(n):
-        s = seed + i
+        s = _seed_for(path, i, seed)
         params = sampler.sample(np.random.default_rng(s))
         result = engine.augment(clean, params, seed=s, lead_bboxes=None)
-        suffix = "" if n == 1 else f"_{s:03d}"
+        suffix = "" if n == 1 else f"_{i:02d}"
         result.image.save(out / f"{path.stem}_photo{suffix}.jpg", quality=92)
         if compare:
             _compare(clean, result.image, out / f"{path.stem}_compare{suffix}.png")

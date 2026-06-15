@@ -137,22 +137,42 @@ def apply_edge_curl(img: np.ndarray, disp: DisplacementField, rng: np.random.Gen
     return iu.apply_brightness(img, gain.astype(np.float32))
 
 
+# Varied stain palettes (coffee, tea, water, ink, highlighter, grease, blood-ish).
+_STAIN_COLORS = (
+    (0.55, 0.40, 0.25), (0.62, 0.50, 0.30), (0.70, 0.72, 0.74), (0.15, 0.20, 0.45),
+    (0.85, 0.80, 0.30), (0.45, 0.40, 0.35), (0.55, 0.18, 0.15), (0.30, 0.45, 0.30),
+)
+
+
 def add_stain(img: np.ndarray, rng: np.random.Generator, *, opacity: float) -> np.ndarray:
-    """Coffee-ring / watermark: feathered brownish ellipse with a darker rim."""
+    """A stain with randomized colour, shape, ring/fill mix and irregular edge.
+
+    Variety so the model never keys on a single "coffee-ring" template: random
+    palette, axis ratio, rotation, an irregular (noise-perturbed) boundary, and a
+    random balance between a filled blob and a darker rim.
+    """
     h, w = img.shape[:2]
     X, Y = _grid(h, w)
-    cx = rng.uniform(0.15 * w, 0.85 * w)
-    cy = rng.uniform(0.15 * h, 0.85 * h)
-    rx = rng.uniform(0.06, 0.16) * w
-    ry = rx * rng.uniform(0.7, 1.3)
-    d = np.sqrt(((X - cx) / rx) ** 2 + ((Y - cy) / ry) ** 2)
-    fill = np.clip(1.0 - d, 0.0, 1.0) ** 2
-    ring = np.exp(-0.5 * ((d - 1.0) / 0.12) ** 2)        # darker rim near edge
-    alpha = (opacity * (0.5 * fill + ring)).astype(np.float32)
-    alpha = np.clip(alpha, 0.0, opacity)
-    stain_color = np.array([0.55, 0.40, 0.25], dtype=np.float32)  # brown
-    out = img * (1.0 - alpha[..., None]) + stain_color[None, None, :] * alpha[..., None]
-    return np.clip(out, 0.0, 1.0)
+    cx = rng.uniform(0.12 * w, 0.88 * w)
+    cy = rng.uniform(0.12 * h, 0.88 * h)
+    rx = rng.uniform(0.04, 0.18) * w
+    ry = rx * rng.uniform(0.5, 1.7)
+    theta = rng.uniform(0, np.pi)
+    ct, st = np.cos(theta), np.sin(theta)
+    xr = (X - cx) * ct + (Y - cy) * st
+    yr = -(X - cx) * st + (Y - cy) * ct
+    d = np.sqrt((xr / rx) ** 2 + (yr / ry) ** 2)
+    # Irregular boundary via low-frequency noise.
+    d = d * (1.0 + 0.35 * fractal_noise(h, w, rng, cell_px=max(20, w / 12),
+                                        normalize="signed"))
+    fill = np.clip(1.0 - d, 0.0, 1.0) ** rng.uniform(1.2, 2.6)
+    ring = np.exp(-0.5 * ((d - 1.0) / rng.uniform(0.06, 0.2)) ** 2)
+    ring_mix = rng.uniform(0.2, 1.0)
+    alpha = np.clip(opacity * ((1 - ring_mix) * fill + ring_mix * ring), 0.0, opacity)
+    color = np.array(_STAIN_COLORS[int(rng.integers(len(_STAIN_COLORS)))], np.float32)
+    color = np.clip(color + rng.normal(0, 0.05, 3), 0, 1).astype(np.float32)
+    a = alpha[..., None].astype(np.float32)
+    return np.clip(img * (1.0 - a) + color[None, None, :] * a, 0.0, 1.0)
 
 
 def add_pen_marks(img: np.ndarray, rng: np.random.Generator, *, n: int = 0) -> np.ndarray:

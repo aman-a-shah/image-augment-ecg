@@ -34,8 +34,7 @@ class StripExample:
 def build_strip_examples(record: ECGRecord, render: RenderResult) -> list[StripExample]:
     """One StripExample per grid lead panel, cropped from the clean render."""
     clean = np.asarray(render.image.convert("L"), np.float32) / 255.0
-    H_img = clean.shape[0]
-    layout = build_standard_12lead(rhythm=True)
+    layout = render.layout or build_standard_12lead()
     ppm = config.mm_to_px(1.0, render.dpi)
     gain_ppm = render.gain_mm_mv * ppm
 

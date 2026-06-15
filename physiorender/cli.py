@@ -47,8 +47,6 @@ def _cmd_render(args: argparse.Namespace) -> int:
 
 def _cmd_augment(args: argparse.Namespace) -> int:
     rec = load_ecg(args.path, validate=True)
-    render = ECGRenderer(dpi=args.dpi, paper_speed_mm_s=args.speed,
-                         gain_mm_mv=args.gain).render(rec)
     engine = DegradationEngine(dpi=args.dpi)
     sampler = ParameterSampler()
     out = Path(args.out)
@@ -56,7 +54,10 @@ def _cmd_augment(args: argparse.Namespace) -> int:
     stem = Path(args.path).stem
     for i in range(args.n):
         seed = args.seed + i
-        params = sampler.sample(np.random.default_rng(seed))
+        rng = np.random.default_rng(seed)
+        style = sampler.sample_style(rng)
+        params = sampler.sample(rng)
+        render = ECGRenderer(dpi=args.dpi, style=style).render(rec)
         result = engine.augment(render.image, params, seed=seed,
                                 lead_bboxes=render.lead_bboxes)
         image_id = f"{stem}_aug_{seed:06d}"

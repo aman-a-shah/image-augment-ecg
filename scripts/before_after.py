@@ -59,15 +59,16 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     record = load_ecg(args.path, validate=True)
-    render = ECGRenderer(dpi=args.dpi).render(record)
     engine = DegradationEngine(dpi=args.dpi)
     sampler = ParameterSampler()
     stem = Path(args.path).stem
 
-    render.image.save(out / f"{stem}_before.png")
     for i in range(args.n):
         seed = args.seed + i
-        params = sampler.sample(np.random.default_rng(seed))
+        rng = np.random.default_rng(seed)
+        style = sampler.sample_style(rng)
+        params = sampler.sample(rng)
+        render = ECGRenderer(dpi=args.dpi, style=style).render(record)
         result = engine.augment(render.image, params, seed=seed,
                                 lead_bboxes=render.lead_bboxes)
         result.image.save(out / f"{stem}_after_{seed:03d}.jpg", quality=92)

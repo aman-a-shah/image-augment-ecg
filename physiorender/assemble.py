@@ -7,6 +7,9 @@ nested lists so the result is JSON-serializable and validatable.
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
+
 import numpy as np
 
 from .degrade.engine import AugmentationResult
@@ -50,4 +53,7 @@ def build_metadata(
         homography_inv=np.asarray(aug_result.homography_inv,
                                   dtype=float).tolist(),
         warp_field=warp_field_filename,
+        # Normalize to JSON-native types (tuples -> lists) so it round-trips equal.
+        render_style=(json.loads(json.dumps(asdict(render_result.style)))
+                      if render_result.style else None),
     )

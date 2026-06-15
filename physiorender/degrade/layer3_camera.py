@@ -164,17 +164,37 @@ def transform_bbox(bbox: list[int], lens: LensModel, H: np.ndarray,
 # Background, blur, lens dirt
 # ====================================================================== #
 def make_background(h: int, w: int, rng: np.random.Generator) -> np.ndarray:
-    """Procedural surface behind the document (solid / table / cloth-ish)."""
+    """Procedural surface behind the document — many varied schemes."""
     from .noise import fractal_noise
-    kind = rng.integers(0, 3)
-    base = np.array([rng.uniform(0.15, 0.55) for _ in range(3)], dtype=np.float32)
+    kind = rng.choice(["solid", "noisy", "wood", "cloth", "gradient", "desk", "dark"],
+                      p=[0.14, 0.18, 0.18, 0.16, 0.14, 0.12, 0.08])
+    # Random base colour across a wide gamut (woods, fabrics, desks, darks).
+    hue = rng.uniform(0, 1)
+    sat = rng.uniform(0.0, 0.5)
+    val = rng.uniform(0.08, 0.7) if kind != "dark" else rng.uniform(0.02, 0.18)
+    import colorsys
+    base = np.array(colorsys.hsv_to_rgb(hue, sat, val), np.float32)
     bg = np.ones((h, w, 3), np.float32) * base
-    if kind >= 1:  # add low-frequency texture
-        tex = fractal_noise(h, w, rng, cell_px=max(30, w / 8), normalize="signed")
-        bg = np.clip(bg + 0.12 * tex[..., None], 0, 1)
-    if kind == 2:  # woodgrain-ish directional streaks
-        streak = fractal_noise(h, w, rng, cell_px=max(8, w / 60), normalize="signed")
-        bg = np.clip(bg + 0.06 * streak[..., None] * np.array([0.6, 0.4, 0.2]), 0, 1)
+
+    if kind in ("noisy", "cloth", "desk"):
+        cell = w / (10 if kind != "cloth" else 40)
+        tex = fractal_noise(h, w, rng, cell_px=max(10, cell), normalize="signed")
+        bg = np.clip(bg + rng.uniform(0.06, 0.16) * tex[..., None], 0, 1)
+    if kind == "wood":
+        streak = fractal_noise(h, w, rng, cell_px=max(6, w / 70), normalize="signed")
+        grain = fractal_noise(h, w, rng, cell_px=max(30, w / 6), normalize="signed")
+        bg = np.clip(bg + 0.09 * streak[..., None] * np.array([0.6, 0.4, 0.2])
+                     + 0.06 * grain[..., None], 0, 1)
+    if kind == "cloth":  # fine cross-weave
+        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+        weave = (np.sin(xx / rng.uniform(2, 5)) + np.sin(yy / rng.uniform(2, 5)))
+        bg = np.clip(bg + 0.03 * weave[..., None], 0, 1)
+    if kind == "gradient":
+        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+        ang = rng.uniform(0, 2 * np.pi)
+        g = (xx * np.cos(ang) + yy * np.sin(ang))
+        g = (g - g.min()) / (np.ptp(g) + 1e-6)
+        bg = np.clip(bg + (rng.uniform(-0.2, 0.2)) * g[..., None], 0, 1)
     return bg.astype(np.float32)
 
 

@@ -22,7 +22,7 @@ from phototrace.train_geometry import split_dataset, train_regressor  # noqa: E4
 
 from .conftest import DUMMY_XML
 
-IMAGE_SIZE = 96
+IMAGE_SIZE = 112
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +30,9 @@ def dataset_dir(tmp_path_factory) -> Path:
     if not DUMMY_XML.exists():
         pytest.skip("sample file absent")
     out = tmp_path_factory.mktemp("phototrace_ds")
-    generate_dataset([DUMMY_XML], out_dir=out, n_per_source=48, dpi=100,
+    # The diversity overhaul makes corner/box regression harder, so the smoke
+    # test needs more data to demonstrate generalization beyond the baseline.
+    generate_dataset([DUMMY_XML], out_dir=out, n_per_source=160, dpi=100,
                      save_warp=False, write_signals=False, base_seed=100)
     return out
 
@@ -47,7 +49,7 @@ def test_dataset_targets_shapes(dataset_dir):
 def test_stage1_corner_regression_learns(dataset_dir):
     train, val = split_dataset(str(dataset_dir), image_size=IMAGE_SIZE, seed=1)
     report = train_regressor(CornerRegressor(), train, val, target_key="corners",
-                             epochs=40, lr=2e-3, batch_size=8, seed=1)
+                             epochs=60, lr=1.5e-3, batch_size=16, seed=1)
     # Loss must drop substantially, and beat predict-the-mean.
     assert report.train_losses[-1] < 0.6 * report.train_losses[0]
     assert report.beats_baseline, (report.val_mae, report.baseline_mae)
@@ -56,7 +58,7 @@ def test_stage1_corner_regression_learns(dataset_dir):
 def test_stage2_lead_detection_learns(dataset_dir):
     train, val = split_dataset(str(dataset_dir), image_size=IMAGE_SIZE, seed=2)
     report = train_regressor(LeadDetector(), train, val, target_key="boxes",
-                             epochs=40, lr=2e-3, batch_size=8, seed=2)
+                             epochs=60, lr=1.5e-3, batch_size=16, seed=2)
     assert report.train_losses[-1] < 0.6 * report.train_losses[0]
     assert report.beats_baseline, (report.val_mae, report.baseline_mae)
 

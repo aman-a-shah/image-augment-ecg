@@ -201,6 +201,65 @@ def test_augment_reproducible():
     assert np.array_equal(a, b)
 
 
+def test_document_fully_in_frame_no_crop():
+    """No part of the ECG is ever cut off: the whole document quad stays in frame."""
+    from physiorender.sampling import ParameterSampler
+    rec, render = _small_render()
+    w, h = render.image.size
+    eng = DegradationEngine(dpi=100)
+    samp = ParameterSampler()
+    rect = np.array([[0, 0], [w, 0], [w, h], [0, h]], np.float32).reshape(1, -1, 2)
+    for seed in range(20):
+        params = samp.sample(np.random.default_rng(seed))
+        result = eng.augment(render.image, params, seed=seed,
+                             lead_bboxes=render.lead_bboxes)
+        Wp, Hp = result.image.size
+        quad = cv2.perspectiveTransform(rect, result.homography).reshape(-1, 2)
+        assert quad[:, 0].min() >= -1.0, (seed, quad)
+        assert quad[:, 1].min() >= -1.0, (seed, quad)
+        assert quad[:, 0].max() <= Wp + 1.0, (seed, quad)
+        assert quad[:, 1].max() <= Hp + 1.0, (seed, quad)
+
+
+def test_all_lead_bboxes_inside_frame():
+    """Every lead's post-warp bbox is strictly inside the image (not clamped to an edge)."""
+    from physiorender.sampling import ParameterSampler
+    rec, render = _small_render()
+    eng = DegradationEngine(dpi=100)
+    samp = ParameterSampler()
+    for seed in range(10):
+        params = samp.sample(np.random.default_rng(seed))
+        result = eng.augment(render.image, params, seed=seed,
+                             lead_bboxes=render.lead_bboxes)
+        Wp, Hp = result.image.size
+        for lead in STANDARD_LEADS:
+            x1, y1, x2, y2 = result.lead_bboxes[lead]
+            assert 0 < x1 < x2 < Wp, (seed, lead, (x1, y1, x2, y2))
+            assert 0 < y1 < y2 < Hp, (seed, lead, (x1, y1, x2, y2))
+
+
+def test_displacement_replicates_not_mirrors():
+    """Warp border must extend (replicate) the edge, never mirror page content back in."""
+    from physiorender.degrade.warp import apply_displacement
+    w = 80
+    ramp = np.tile(np.linspace(0, 1, w, dtype=np.float32), (40, 1))[..., None].repeat(3, 2)
+    dx = np.full((40, w), 6.0, np.float32)      # sample 6px to the right
+    dy = np.zeros((40, w), np.float32)
+    out = apply_displacement(ramp, dx, dy)
+    # Right edge samples beyond -> replicate keeps it ~1.0; a mirror would dip below.
+    assert out[:, -1].mean() > 0.95
+
+
+def test_sampler_never_emits_pen_marks():
+    from physiorender.sampling import ParameterSampler
+    samp = ParameterSampler()
+    for seed in range(100):
+        p = samp.sample(np.random.default_rng(seed))
+        assert not p.has_pen_marks
+        assert p.n_pen_marks == 0
+        assert p.pen_count == 0
+
+
 def test_build_metadata_valid_and_round_trips():
     rec, render = _small_render()
     params = AugmentationParams(n_wrinkles=1, tilt_x_deg=5, has_specular=True)

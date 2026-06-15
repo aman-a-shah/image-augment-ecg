@@ -30,9 +30,14 @@ def apply_displacement(
     dy: np.ndarray,
     *,
     interpolation: int = cv2.INTER_LINEAR,
-    border: int = cv2.BORDER_REFLECT_101,
+    border: int = cv2.BORDER_REPLICATE,
 ) -> np.ndarray:
-    """Warp ``img`` by backward displacement ``(dx, dy)``."""
+    """Warp ``img`` by backward displacement ``(dx, dy)``.
+
+    Uses BORDER_REPLICATE (not REFLECT) so wrinkle/fold displacement never
+    *mirrors* a strip of the page content back into view — it only extends the
+    outermost (margin) pixels. Keeps the ECG content from being duplicated.
+    """
     h, w = img.shape[:2]
     X, Y = _grid(h, w)
     map_x = (X + dx).astype(np.float32)

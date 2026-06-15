@@ -77,7 +77,7 @@ class ParameterSampler:
                                     min(0.6, 0.25 + 0.25 * sev),
                                     min(0.35, 0.05 + 0.25 * sev)]))
         n_stains = cap(rng.binomial(4, 0.10 + 0.35 * sev), 4)
-        n_pen = cap(rng.binomial(3, 0.08 + 0.22 * sev), 3)
+        n_pen = 0   # pen-mark annotations disabled: too noisy on the trace
         n_fp = cap(rng.binomial(2, 0.12 + 0.25 * sev), 2)
 
         # --- camera geometry ---
@@ -119,7 +119,7 @@ class ParameterSampler:
             n_folds=n_folds,
             has_stain=n_stains > 0,
             stain_opacity=float(rng.uniform(0.1, 0.4)),
-            has_pen_marks=n_pen > 0,
+            has_pen_marks=False,
             tilt_x_deg=tilt_x,
             tilt_y_deg=tilt_y,
             rotation_deg=rotation,

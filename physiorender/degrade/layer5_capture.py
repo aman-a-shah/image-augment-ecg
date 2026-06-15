@@ -80,7 +80,7 @@ def apply_chromatic_aberration(img: np.ndarray, *, px: float) -> np.ndarray:
     def _scale(ch: np.ndarray, s: float) -> np.ndarray:
         M = np.array([[s, 0, (1 - s) * w / 2], [0, s, (1 - s) * h / 2]], np.float32)
         return cv2.warpAffine(ch, M, (w, h), flags=cv2.INTER_LINEAR,
-                              borderMode=cv2.BORDER_REFLECT_101)
+                              borderMode=cv2.BORDER_REPLICATE)
 
     out = img.copy()
     out[..., 0] = _scale(img[..., 0], 1.0 + e)   # red expands

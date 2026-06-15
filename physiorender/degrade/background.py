@@ -214,5 +214,5 @@ def build_scene_background(out_w: int, out_h: int, rng: np.random.Generator, *,
     S = np.array([[sx, 0, wx0], [0, sy, wy0], [0, 0, 1]], np.float64)
     M = (H.astype(np.float64) @ S).astype(np.float32)
     bg = cv2.warpPerspective(tex, M, (out_w, out_h), flags=cv2.INTER_LINEAR,
-                             borderMode=cv2.BORDER_REFLECT_101)
+                             borderMode=cv2.BORDER_REPLICATE)
     return np.clip(bg, 0, 1).astype(np.float32)

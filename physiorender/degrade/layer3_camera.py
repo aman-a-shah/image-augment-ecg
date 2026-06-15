@@ -49,8 +49,10 @@ def apply_barrel(img: np.ndarray, lens: LensModel) -> np.ndarray:
     g = lens._gain(r2)
     map_x = (lens.cx + (X - lens.cx) * g).astype(np.float32)
     map_y = (lens.cy + (Y - lens.cy) * g).astype(np.float32)
+    # REPLICATE (not REFLECT): the lens map pulls content inward, so edge pixels
+    # sample slightly outside — extend the margin rather than mirror the page.
     return cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR,
-                     borderMode=cv2.BORDER_REFLECT_101)
+                     borderMode=cv2.BORDER_REPLICATE)
 
 
 def distort_point(pt: tuple[float, float], lens: LensModel,
@@ -120,8 +122,10 @@ def frame_and_warp(doc: np.ndarray, rng: np.random.Generator, *,
     src = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype=np.float32)
     dst = project_corners(w, h, tilt_x_deg, tilt_y_deg, rotation_deg)
 
-    # Scale so the document occupies (1 - 2*crop_margin) of the frame.
-    occupy = max(0.55, 1.0 - 2.0 * crop_margin)
+    # Scale so the document occupies (1 - 2*crop_margin) of the frame, but never
+    # more than 92% — guaranteeing a margin on every side so no part of the ECG
+    # is ever cut off, even under tilt/rotation.
+    occupy = max(0.55, min(0.92, 1.0 - 2.0 * crop_margin))
     bw = dst[:, 0].max() - dst[:, 0].min()
     bh = dst[:, 1].max() - dst[:, 1].min()
     s = occupy * min(Wo / bw, Ho / bh)

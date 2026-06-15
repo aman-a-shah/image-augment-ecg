@@ -243,16 +243,11 @@ def apply_blur(img: np.ndarray, rng: np.random.Generator, *,
     if blur_type == "handshake":
         k = _handshake_kernel(int((0.12 + 0.5 * strength) * ppm), rng)
         return cv2.filter2D(img, -1, k, borderType=cv2.BORDER_REFLECT_101)
-    # defocus: isotropic Gaussian, optionally spatially varying (shallow DOF)
+    # defocus: uniform isotropic Gaussian. The document and the table it lies on
+    # are coplanar (same focal depth), so blur must be uniform across the whole
+    # frame — no spatially-varying / shallow depth-of-field falloff.
     sigma = (0.08 + 0.3 * strength) * ppm
-    blurred = cv2.GaussianBlur(img, (0, 0), sigmaX=sigma, sigmaY=sigma)
-    if rng.random() < 0.5:  # shallow depth-of-field: sharp center, soft edges
-        h, w = img.shape[:2]
-        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
-        r = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2)
-        m = np.clip((r - 0.4) / 0.6, 0, 1)[..., None]
-        return (img * (1 - m) + blurred * m).astype(np.float32)
-    return blurred
+    return cv2.GaussianBlur(img, (0, 0), sigmaX=sigma, sigmaY=sigma)
 
 
 def apply_lens_dirt(img: np.ndarray, rng: np.random.Generator) -> np.ndarray:

@@ -27,6 +27,7 @@ from . import layer2_handling as l2
 from . import layer3_camera as l3
 from . import layer4_lighting as l4
 from . import layer5_capture as l5
+from .background import build_scene_background
 from .light import LightSource
 from .warp import DisplacementField
 
@@ -203,8 +204,9 @@ class DegradationEngine:
             rotation_deg=params.rotation_deg, crop_margin=params.crop_margin,
             out_size=out_size,
         )
-        bg = l3.make_background(h, w, rng)
-        photo = l3.composite_on_background(persp.image, persp.mask, bg)
+        scene = build_scene_background(w, h, rng, H=persp.H, H_inv=persp.H_inv,
+                                       doc_w=w, doc_h=h, light=light)
+        photo = l3.composite_on_background(persp.image, persp.mask, scene)
         applied.append("perspective")
 
         # Transform lead bboxes through lens + homography into photo space.

@@ -133,7 +133,7 @@ expected, not a hang (use `-v` to watch progress).
 - **Ingestion:** format-adaptive loader (GE CardioSoft XML, generic-XML & WFDB fallbacks) → validated `ECGRecord` in mV
 - **Renderer + `RenderStyle`:** clean 12-lead printout @300 DPI with a *randomized* style — paper colour, grid hue/fade, trace colour/width, fonts, margins, paper speed, gain, layout template, calibration/header presence
 - **Degradation L1–2:** paper aging (yellowing, ink density, ink skip) + handling (light-consistent wrinkles/folds, edge curl, multiple varied stains/pen/fingerprints) with an invertible warp field
-- **Capture L3–5:** lens distortion + chromatic aberration → perspective (`H_inv`) → blur → multi-light/specular/banding/shadow/vignette/moiré → sensor noise → ISP tone (contrast/gamma/saturation) → sharpen → JPEG (single or double)
+- **Capture L3–5:** lens distortion + chromatic aberration → perspective (`H_inv`) → realistic **table backgrounds** (wood / white / black / metal / marble / laminate with stray papers peeking in, perspective-locked to the ECG via the same homography, contact shadow + lighting shared with the page) → blur → multi-light/specular/banding/shadow/vignette/moiré → sensor noise → ISP tone (contrast/gamma/saturation) → sharpen → JPEG (single or double)
 - **Data factory:** hierarchical `ParameterSampler` with a per-image *severity* latent (pristine → trashed), deterministic batch generation, calibration tooling
 
 ### Diversity / anti-templating
